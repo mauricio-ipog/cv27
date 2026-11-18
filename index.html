@@ -109,8 +109,10 @@
 
 
   /* ---------- estática de TV permanente ---------- */
-  #estatica { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: .08 ; mix-blend-mode: screen; image-rendering: auto; }
-  #scan { position: fixed; inset: 0; z-index: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 2px, transparent 2px 6px); opacity: .5; }
+  #estatica { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: .04; transition: opacity .8s; mix-blend-mode: screen; image-rendering: auto; }
+  #scan { position: fixed; inset: 0; z-index: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 2px, transparent 2px 6px); opacity: .25; transition: opacity .8s; }
+  body.abertura #estatica { opacity: .08; }
+  body.abertura #scan { opacity: .5; }
   section.s, .nav, .hint { position: relative; z-index: 1; }
   .nav, .hint { position: fixed; }
   #abre { background: rgba(0,0,0,.5); }
@@ -118,7 +120,7 @@
 
 </style>
 </head>
-<body>
+<body class="abertura">
 
 <!-- gradientes e recortes (do arquivo LOGO_V1.svg) -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
@@ -442,7 +444,9 @@
     if (t < T_BK1) return lerp(CX[5], AX, eBackSoft(seg(t, T_BK0, T_BK1)));
     return AX;
   }
-  var ignite = [T_ON + .46];                            // quando cada letra de VENDAS acende
+  var ignite = [T_ON + .46];
+  var LAMP_PTS = [[-46, 125], [46, 125], [-30, 40], [30, 40], [0, -30], [-32, -72], [32, -72]];   /* contorno do Ã em relação ao eixo */
+  var CVB = cv.map(function (p) { var b = p.getBBox(); return [r3(b.x + b.width / 2), r3(b.y + b.height)]; });                            // quando cada letra de VENDAS acende
   for (i = 1; i < 6; i++) {
     for (var tt = T_SW0; tt < T_SW1; tt += .005) { if (poolTL(tt) >= CX[i] - 150) break; }
     ignite.push(tt);
@@ -527,6 +531,19 @@
       }
       A(LG[j], 'opacity', r3(g)); A(LW[j], 'opacity', r3(wh)); S(GL[j], 'opacity', r3(gl));
       A(LL[j], 'transform', 'translate(0 ' + r3(dy) + ')');
+    }
+
+    /* o Ã de "Convenção" é a lâmpada: mira antes de acender e gira junto com o feixe, no mesmo eixo */
+    var aim = t < T_DARK ? eInOut(seg(t, T_ON - .5, T_ON - .08)) : 1 - eInOut(seg(t, T_DARK, T_DARK + .4));
+    var phi = -ang * aim, ph = phi * Math.PI / 180, cs = Math.cos(ph), sn = Math.sin(ph), mn = 0, mx = 0;
+    A(cv[7], 'transform', 'rotate(' + r3(phi) + ' ' + AX + ' 222.2)');
+    /* ao girar, o Ã empurra as vizinhas: quem está mais perto cede mais, e o empurrão se dissipa pela palavra */
+    for (j = 0; j < LAMP_PTS.length; j++) { var rx = LAMP_PTS[j][0] * cs - LAMP_PTS[j][1] * sn; if (rx < mn) mn = rx; if (rx > mx) mx = rx; }
+    var pushL = Math.max(0, -mn - 102 + 44), pushR = Math.max(0, mx - 100 + 40);
+    for (j = 0; j < cv.length; j++) {
+      if (j === 7) continue;
+      var n = Math.abs(j - 7) - 1, p = (j < 7 ? -pushL : pushR) * Math.pow(.58, n), box = CVB[j];
+      A(cv[j], 'transform', p ? 'translate(' + r3(p) + ' 0) rotate(' + r3(p * .07) + ' ' + box[0] + ' ' + box[1] + ')' : '');
     }
 
     /* "Convenção de" */
@@ -652,7 +669,7 @@
   let cur = 0;
   const io = new IntersectionObserver(es => es.forEach(e => {
     if (e.isIntersecting && e.intersectionRatio > .6) {
-      cur = secs.indexOf(e.target); dots.forEach((d, i) => d.classList.toggle('on', i === cur));
+      cur = secs.indexOf(e.target); document.body.classList.toggle('abertura', cur === 0); dots.forEach((d, i) => d.classList.toggle('on', i === cur));
       if (e.target.id === 'logo-slide') { LogoShow.restart(); LogoShow.setActive(true); }
     } else if (e.target.id === 'logo-slide') LogoShow.setActive(false);
   }), { threshold: [.6] });
